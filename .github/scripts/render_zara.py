@@ -14,6 +14,8 @@ import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
 
+from cinematic_finish import cinematic_finish
+
 ORIGIN = "https://zara-gaming-cloud.z16958420.workers.dev"
 AUDIENCE = "zara-gaming-cloud-render"
 # Cloudflare workers.dev Browser Integrity Check rejects Python urllib's default
@@ -135,9 +137,10 @@ def combine_segments(job: dict, segments: list[Path]) -> Path:
         "\n".join(f"file '{segment.name}'" for segment in segments) + "\n",
         encoding="utf-8",
     )
-    OUTPUT.mkdir(parents=True, exist_ok=True)
     filename = job["id"].replace(":", "-")
-    result = OUTPUT / f"zara-{filename}-FOR-REVIEW.mp4"
+    # This plain edit is temporary: only the final enhanced export belongs in
+    # the downloadable review artifact directory.
+    result = WORK / f"zara-{filename}-TEMPORARY.mp4"
     subprocess.run(
         ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "concat",
          "-safe", "0", "-i", str(concat_file), "-c", "copy", "-movflags", "+faststart", str(result)],
@@ -191,7 +194,16 @@ def main() -> None:
         image = image_frame(job, frame, token)
         segments.append(render_segment(job, frame, image))
     rendered = combine_segments(job, segments)
-    print(f"Review-only preview rendered: {rendered}; no YouTube upload performed")
+    OUTPUT.mkdir(parents=True, exist_ok=True)
+    enhanced = OUTPUT / f"zara-{job['id'].replace(':', '-')}-CINEMATIC-FOR-REVIEW.mp4"
+    cinematic_finish(
+        rendered,
+        enhanced,
+        game=job["game"],
+        scene_count=FRAME_COUNTS[job["format"]],
+        scene_seconds=SEGMENT_SECONDS[job["format"]],
+    )
+    print(f"Cinematic review-only preview rendered: {enhanced}; no YouTube upload performed")
 
 
 if __name__ == "__main__":

@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - '.github/scripts/render_zara.py'
+      - '.github/scripts/cinematic_finish.py'
       - '.github/workflows/zara-render.yml'
   workflow_dispatch:
     inputs:
@@ -49,7 +50,7 @@ jobs:
           fi
           ffmpeg -version | head -n 1
 
-      - name: Build original review-only video
+      - name: Build cinematic AI-concept review video
         env:
           # One first-batch pilot uses an existing draft, then cron picks current drafts.
           ZARA_JOB_ID: ${{ github.event_name == 'push' && '2026-11-16:short' || github.event.inputs.job_id || '' }}
