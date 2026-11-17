@@ -54,7 +54,7 @@ jobs:
           # One first-batch pilot uses an existing draft, then cron picks current drafts.
           ZARA_JOB_ID: ${{ github.event_name == 'push' && '2026-11-16:short' || github.event.inputs.job_id || '' }}
           ZARA_SCHEDULE: ${{ github.event.schedule || '' }}
-          ZARA_SMOKE_TEST: ${{ github.event_name != 'push' && inputs.smoke_test && '1' || '' }}
+          ZARA_SMOKE_TEST: ${{ github.event_name == 'push' && '1' || inputs.smoke_test && '1' || '' }}
         run: python3 .github/scripts/render_zara.py
 
       - name: Save preview for owner review
