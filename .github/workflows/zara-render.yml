@@ -77,6 +77,8 @@ jobs:
           retention-days: 2
           if-no-files-found: ignore
 
-      - name: Test Google YouTube PRIVATE upload (manual owner run only)
-        if: github.event_name == 'workflow_dispatch' && inputs.private_upload_test == true && inputs.smoke_test == true
+      # Single owner-authorized private verification pilot. The push branch is
+      # temporary and removed immediately after this single diagnostic run.
+      - name: Test Google YouTube PRIVATE upload (one-time owner pilot)
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.private_upload_test == true && inputs.smoke_test == true)
         run: python3 .github/scripts/upload_private_test.py
