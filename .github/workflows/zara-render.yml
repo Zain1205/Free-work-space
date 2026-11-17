@@ -65,6 +65,10 @@ jobs:
         if: github.event_name == 'push'
         run: python3 .github/scripts/render_minecraft_history.py
 
+      - name: Upload exactly one approved Minecraft Short to YouTube PUBLIC
+        if: github.event_name == 'push' && contains(github.event.head_commit.message, 'Publish reviewed Minecraft Short')
+        run: python3 .github/scripts/upload_minecraft_once.py
+
       - name: Build cinematic AI-concept review video
         env:
           # One first-batch pilot uses an existing draft, then cron picks current drafts.
