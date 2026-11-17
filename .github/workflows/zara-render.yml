@@ -33,6 +33,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
   id-token: write
 
 concurrency:
@@ -61,8 +62,17 @@ jobs:
       - name: Verify Top 5 / Top 10 editor code
         run: python3 -m py_compile .github/scripts/toplist_editor.py .github/scripts/cinematic_finish.py
 
+      - name: Restore the exact reviewed Short from the successful prior run
+        if: github.event_name == 'push' && contains(github.event.head_commit.message, 'Publish reviewed Minecraft Short')
+        uses: actions/download-artifact@v4
+        with:
+          name: zara-ai-concept-for-review
+          path: preview_output
+          run-id: 44112356639
+          github-token: ${{ github.token }}
+
       - name: Render original Minecraft history Short from CC BY gameplay
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && !contains(github.event.head_commit.message, 'Publish reviewed Minecraft Short')
         run: python3 .github/scripts/render_minecraft_history.py
 
       - name: Upload exactly one approved Minecraft Short to YouTube PUBLIC
@@ -70,6 +80,7 @@ jobs:
         run: python3 .github/scripts/upload_minecraft_once.py
 
       - name: Build cinematic AI-concept review video
+        if: github.event_name != 'push' || !contains(github.event.head_commit.message, 'Publish reviewed Minecraft Short')
         env:
           # One first-batch pilot uses an existing draft, then cron picks current drafts.
           ZARA_JOB_ID: ${{ github.event_name == 'push' && '2026-11-16:short' || github.event.inputs.job_id || '' }}
