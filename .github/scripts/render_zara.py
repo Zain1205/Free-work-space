@@ -143,7 +143,14 @@ def combine_segments(job: dict, segments: list[Path]) -> Path:
 
 
 def main() -> None:
-    jobs = request_json(f"{ORIGIN}/jobs").get("jobs", [])
+    try:
+        jobs = request_json(f"{ORIGIN}/jobs").get("jobs", [])
+    except urllib.error.HTTPError as exc:
+        # Print only a public URL's non-sensitive error; never log the OIDC token.
+        public_body = exc.read(450).decode("utf-8", errors="replace").replace("\n", " ")
+        ray = exc.headers.get("CF-RAY", "not-provided")
+        print(f"Public Worker /jobs returned HTTP {exc.code}, CF-RAY={ray}, body={public_body}")
+        raise
     job = choose_job(jobs)
     if not job:
         return
