@@ -16,6 +16,10 @@ from datetime import datetime, timedelta, timezone
 
 ORIGIN = "https://zara-gaming-cloud.z16958420.workers.dev"
 AUDIENCE = "zara-gaming-cloud-render"
+# Cloudflare workers.dev Browser Integrity Check rejects Python urllib's default
+# signature. Identify this integration honestly, as Cloudflare recommends; do
+# not impersonate a browser or turn off security protections.
+USER_AGENT = "ZaraGamingCloud-ReviewRenderer/1.0 (+https://github.com/Zain1205/Free-work-space)"
 FRAME_COUNTS = {"short": 4, "long": 6}
 SEGMENT_SECONDS = {"short": 8, "long": 25}
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
@@ -24,7 +28,7 @@ OUTPUT = Path("preview_output")
 
 
 def request_json(url: str, *, headers: dict | None = None) -> dict:
-    request = urllib.request.Request(url, headers=headers or {})
+    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, **(headers or {})})
     with urllib.request.urlopen(request, timeout=35) as response:
         return json.load(response)
 
@@ -76,7 +80,7 @@ def image_frame(job: dict, frame: int, token: str) -> Path:
         target,
         data=b"",
         method="POST",
-        headers={"Authorization": f"Bearer {token}", "Accept": "image/jpeg"},
+        headers={"Authorization": f"Bearer {token}", "Accept": "image/jpeg", "User-Agent": USER_AGENT},
     )
     try:
         with urllib.request.urlopen(request, timeout=150) as response:
