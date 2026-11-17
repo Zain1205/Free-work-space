@@ -1,0 +1,58 @@
+name: Zara Gaming Cloud - Review Render
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/render_zara.py'
+      - '.github/workflows/zara-render.yml'
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: "Existing draft ID, e.g. 2026-11-16:short"
+        required: false
+        type: string
+  schedule:
+    # GitHub schedules can be delayed. Cloudflare queues the drafts 20m earlier.
+    - cron: '20 14 * * *'   # 19:20 Pakistan, daily Shorts
+    - cron: '20 16 * * 0,3' # 21:20 Pakistan, Sun/Wed AI fiction
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: zara-review-render
+  cancel-in-progress: false
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout review renderer
+        uses: actions/checkout@v4
+
+      - name: Check FFmpeg
+        run: |
+          if ! command -v ffmpeg >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          fi
+          ffmpeg -version | head -n 1
+
+      - name: Build original review-only video
+        env:
+          # One first-batch pilot uses an existing draft, then cron picks current drafts.
+          ZARA_JOB_ID: ${{ github.event_name == 'push' && '2026-11-16:short' || github.event.inputs.job_id || '' }}
+          ZARA_SCHEDULE: ${{ github.event.schedule || '' }}
+        run: python3 .github/scripts/render_zara.py
+
+      - name: Save preview for owner review
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zara-ai-concept-for-review
+          path: preview_output/*.mp4
+          retention-days: 2
+          if-no-files-found: ignore
