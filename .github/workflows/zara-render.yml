@@ -7,6 +7,7 @@ on:
       - '.github/scripts/render_zara.py'
       - '.github/scripts/cinematic_finish.py'
       - '.github/scripts/toplist_editor.py'
+      - '.github/scripts/upload_private_test.py'
       - '.github/workflows/zara-render.yml'
   workflow_dispatch:
     inputs:
@@ -18,6 +19,11 @@ on:
         description: "Verify FFmpeg without AI calls, uploads, or licensed media"
         required: false
         default: true
+        type: boolean
+      private_upload_test:
+        description: "Owner-only PRIVATE upload of a 3-second synthetic diagnostic; never public"
+        required: false
+        default: false
         type: boolean
   schedule:
     # GitHub schedules can be delayed. Cloudflare queues the drafts 20m earlier.
@@ -70,3 +76,7 @@ jobs:
           path: preview_output/*.mp4
           retention-days: 2
           if-no-files-found: ignore
+
+      - name: Test Google YouTube PRIVATE upload (manual owner run only)
+        if: github.event_name == 'workflow_dispatch' && inputs.private_upload_test == true && inputs.smoke_test == true
+        run: python3 .github/scripts/upload_private_test.py
