@@ -1,0 +1,58 @@
+{
+  "format": "long",
+  "game": "Minecraft",
+  "title": "TOP 5 MOST DANGEROUS PLACES",
+  "music": {
+    "file": "media/my-original-song.mp3",
+    "rights": "original",
+    "rights_evidence": "My own recorded instrumental; no third-party samples"
+  },
+  "entries": [
+    {
+      "rank": 5,
+      "label": "The Nether Fortress",
+      "clip": "media/nether.mp4",
+      "rights": "self-recorded",
+      "rights_evidence": "Recorded by channel owner, publisher usage terms reviewed",
+      "duration": 25,
+      "start": 0,
+      "speed": 1,
+      "poetry": "Aag ke shehar mein bhi himmat ka safar",
+      "poetry_rights": "original"
+    },
+    {
+      "rank": 4,
+      "label": "The Bastion Remnant",
+      "clip": "media/bastion.mp4",
+      "rights": "self-recorded",
+      "rights_evidence": "Recorded by channel owner, publisher usage terms reviewed",
+      "duration": 25,
+      "speed": 0.8
+    },
+    {
+      "rank": 3,
+      "label": "The Ancient City",
+      "clip": "media/ancient-city.mp4",
+      "rights": "self-recorded",
+      "rights_evidence": "Recorded by channel owner, publisher usage terms reviewed",
+      "duration": 25
+    },
+    {
+      "rank": 2,
+      "label": "The End Islands",
+      "clip": "media/end-islands.mp4",
+      "rights": "self-recorded",
+      "rights_evidence": "Recorded by channel owner, publisher usage terms reviewed",
+      "duration": 25
+    },
+    {
+      "rank": 1,
+      "label": "Deep Dark Warden Encounter",
+      "clip": "media/warden.mp4",
+      "rights": "self-recorded",
+      "rights_evidence": "Recorded by channel owner, publisher usage terms reviewed",
+      "duration": 25,
+      "speed": 0.65
+    }
+  ]
+}

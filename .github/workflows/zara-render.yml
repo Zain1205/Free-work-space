@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/scripts/render_zara.py'
       - '.github/scripts/cinematic_finish.py'
+      - '.github/scripts/toplist_editor.py'
       - '.github/workflows/zara-render.yml'
   workflow_dispatch:
     inputs:
@@ -14,7 +15,7 @@ on:
         required: false
         type: string
       smoke_test:
-        description: "Verify FFmpeg without contacting Cloudflare (recommended until 1010 is resolved)"
+        description: "Verify FFmpeg without AI calls, uploads, or licensed media"
         required: false
         default: true
         type: boolean
@@ -49,6 +50,9 @@ jobs:
             sudo apt-get install -y ffmpeg
           fi
           ffmpeg -version | head -n 1
+
+      - name: Verify Top 5 / Top 10 editor code
+        run: python3 -m py_compile .github/scripts/toplist_editor.py .github/scripts/cinematic_finish.py
 
       - name: Build cinematic AI-concept review video
         env:
