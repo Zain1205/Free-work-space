@@ -142,7 +142,33 @@ def combine_segments(job: dict, segments: list[Path]) -> Path:
     return result
 
 
+def render_smoke_test() -> None:
+    """Verify FFmpeg and artifact delivery without calling a blocked Worker URL."""
+    OUTPUT.mkdir(parents=True, exist_ok=True)
+    result = OUTPUT / "zara-render-ENGINE-SMOKE-TEST.mp4"
+    video_filter = (
+        "drawbox=x=0:y=0:w=iw:h=240:color=0x122b53:t=fill,"
+        f"drawtext=fontfile={FONT}:text='ZARA GAMING CLOUD':"
+        "fontsize=48:fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2-120,"
+        f"drawtext=fontfile={FONT}:text='FFmpeg RENDER ENGINE CHECK':"
+        "fontsize=28:fontcolor=0x91eafa:x=(w-text_w)/2:y=(h-text_h)/2,"
+        f"drawtext=fontfile={FONT}:text='TEST ONLY - NOT AI VIDEO - NOT UPLOADED':"
+        "fontsize=23:fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2+85,"
+        "format=yuv420p"
+    )
+    subprocess.run([
+        "ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
+        "-i", "color=c=0x070b17:s=720x1280:r=24", "-t", "3",
+        "-vf", video_filter, "-c:v", "libx264", "-preset", "veryfast",
+        "-crf", "23", "-movflags", "+faststart", str(result),
+    ], check=True)
+    print(f"Independent FFmpeg renderer passed: {result}. Cloudflare access still requires owner review.")
+
+
 def main() -> None:
+    if os.environ.get("ZARA_SMOKE_TEST") == "1":
+        render_smoke_test()
+        return
     try:
         jobs = request_json(f"{ORIGIN}/jobs").get("jobs", [])
     except urllib.error.HTTPError as exc:

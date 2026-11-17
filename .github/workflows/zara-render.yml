@@ -12,6 +12,11 @@ on:
         description: "Existing draft ID, e.g. 2026-11-16:short"
         required: false
         type: string
+      smoke_test:
+        description: "Verify FFmpeg without contacting Cloudflare (recommended until 1010 is resolved)"
+        required: false
+        default: true
+        type: boolean
   schedule:
     # GitHub schedules can be delayed. Cloudflare queues the drafts 20m earlier.
     - cron: '20 14 * * *'   # 19:20 Pakistan, daily Shorts
@@ -27,6 +32,9 @@ concurrency:
 
 jobs:
   render:
+    # The shared GitHub runner gets Cloudflare 1010 (403). Pause automatic
+    # generation until the account owner authorizes an approved ingress path.
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -46,6 +54,7 @@ jobs:
           # One first-batch pilot uses an existing draft, then cron picks current drafts.
           ZARA_JOB_ID: ${{ github.event_name == 'push' && '2026-11-16:short' || github.event.inputs.job_id || '' }}
           ZARA_SCHEDULE: ${{ github.event.schedule || '' }}
+          ZARA_SMOKE_TEST: ${{ github.event_name == 'push' && '1' || inputs.smoke_test && '1' || '' }}
         run: python3 .github/scripts/render_zara.py
 
       - name: Save preview for owner review
