@@ -81,6 +81,8 @@ export async function routePrivateUpload(request, env) {
   }
   const video=await sent.json().catch(()=>({}));
   if (!/^[A-Za-z0-9_-]{6,32}$/.test(video.id||'')) return json({error:'youtube_video_id_missing'},502);
+  // Fail closed if Google does not confirm the requested private state.
+  if (video.status?.privacyStatus!=='private') return json({error:'youtube_privacy_not_confirmed'},502);
   await env.DB.prepare('INSERT INTO youtube_private_uploads (media_sha256,job_id,youtube_id,content_mode) VALUES (?,?,?,?)')
     .bind(sha,jobId||null,video.id,mode).run();
   console.log(JSON.stringify({event:'youtube_private_upload_saved',mode,video_id:video.id}));
