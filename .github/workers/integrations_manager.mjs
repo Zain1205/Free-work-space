@@ -151,15 +151,18 @@ async function tryRouter(env, info) {
 
 async function status(env) {
   const day = new Date().toISOString().slice(0, 10);
-  const usage = await env.DB.prepare(`SELECT request_count, reserved_tokens, completed_count, failure_count
-    FROM zara_api_daily_budget WHERE day=?`).bind(day).first();
+  const [usage, reviews] = await Promise.all([
+    env.DB.prepare(`SELECT request_count, reserved_tokens, completed_count, failure_count
+      FROM zara_api_daily_budget WHERE day=?`).bind(day).first(),
+    env.DB.prepare(`SELECT id, role, status, source_url, reviewer_note
+      FROM zara_tool_sources ORDER BY id LIMIT 10`).all(),
+  ]);
   return json({
     project: 'Zara Gaming Cloud',
-    source_reviews: [
-      { id: 'motion-prompt-library', role: 'editing inspiration', status: 'reference_only', note: 'Prompt examples are not an FFmpeg API; no external animation assets copied.' },
-      { id: 'freellmapi', role: 'optional self-hosted LLM router', status: routerAvailable(env) ? 'configured_optional' : 'awaiting_owner_https_endpoint_and_credentials', note: 'Aggregated advertised token capacity is not a grant of tokens. Personal experimentation only.' },
-      { id: 'unspecified-10b-plugin', role: 'claimed free-token model failover', status: 'unverified_not_installed', note: 'No verified repository, publisher, API or terms found in the video.' },
-    ],
+    source_reviews: (reviews?.results || []).map(review => ({
+      ...review,
+      status: review.id === 'demo-freellmapi-router' && routerAvailable(env) ? 'configured_optional' : review.status,
+    })),
     editing: { engine: 'FFmpeg via GitHub Actions', available_presets: ['cinematic-pulse', 'neon-sweep', 'clean'], gameplay_rights_check: 'required', automatic_publication: false },
     api_budget: {
       day_utc: day, daily_max_requests: MAX_DAILY_REQUESTS,
