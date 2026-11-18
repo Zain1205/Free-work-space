@@ -43,9 +43,9 @@ on:
         required: false
         type: string
   schedule:
-    # GitHub schedules can be delayed. Cloudflare queues the drafts 20m earlier.
-    - cron: '20 14 * * *'   # 19:20 Pakistan, daily Shorts
-    - cron: '20 16 * * 0,3' # 21:20 Pakistan, Sun/Wed AI fiction
+    # Queue upload in advance; YouTube releases at the exact approved publishAt.
+    - cron: '0 13 * * *'   # 18:00 Pakistan; daily Shorts due at 19:00
+    - cron: '0 14 * * 0,3' # 19:00 Pakistan; Sun/Wed videos due at 21:00
 
 permissions:
   contents: read
@@ -56,6 +56,20 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  publish-queue:
+    # Automated runner ONLY consumes owner-staged assets and the independently
+    # rights-approved SHA-256 record in Cloudflare D1. Empty queue is a no-op.
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout rights-approved queue
+        uses: actions/checkout@v4
+      - name: Submit approved releases up to 48 hours ahead
+        env:
+          ZARA_AUTO_QUEUE: '1'
+        run: python3 .github/scripts/upload_scheduled.py
+
   render:
     # First manually reviewed pilot only. Scheduled jobs remain paused until
     # access, content, and final video quality are verified by the owner.
