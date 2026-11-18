@@ -7,9 +7,6 @@ on:
       - '.github/scripts/render_zara.py'
       - '.github/scripts/cinematic_finish.py'
       - '.github/scripts/toplist_editor.py'
-      - '.github/workers/integrations_manager.mjs'
-      - '.github/workers/integrations.test.mjs'
-      - '.github/scripts/render_minecraft_history.py'
       - '.github/scripts/upload_private_test.py'
       - '.github/workflows/zara-render.yml'
   workflow_dispatch:
@@ -28,6 +25,23 @@ on:
         required: false
         default: false
         type: boolean
+      schedule_approved:
+        description: "Schedule a rights-approved MP4 and its thumbnail; exact SHA approval required in Cloudflare"
+        required: false
+        default: false
+        type: boolean
+      publish_at_utc:
+        description: "Future release time UTC (e.g. 2026-11-19T16:00:00Z = 21:00 PK)"
+        required: false
+        type: string
+      video_path:
+        description: "Approved MP4 file inside approved_media/"
+        required: false
+        type: string
+      thumbnail_path:
+        description: "Approved JPG/PNG file inside approved_media/"
+        required: false
+        type: string
   schedule:
     # GitHub schedules can be delayed. Cloudflare queues the drafts 20m earlier.
     - cron: '20 14 * * *'   # 19:20 Pakistan, daily Shorts
@@ -35,7 +49,6 @@ on:
 
 permissions:
   contents: read
-  actions: read
   id-token: write
 
 concurrency:
@@ -64,28 +77,8 @@ jobs:
       - name: Verify Top 5 / Top 10 editor code
         run: python3 -m py_compile .github/scripts/toplist_editor.py .github/scripts/cinematic_finish.py
 
-      - name: Restore the exact reviewed Short from the successful prior run
-        if: github.event_name == 'push' && contains(github.event.head_commit.message, 'Publish reviewed Minecraft Short')
-        uses: actions/download-artifact@v4
-        with:
-          name: zara-ai-concept-for-review
-          path: preview_output
-          run-id: 44112356639
-          github-token: ${{ github.token }}
-
-      - name: Render original Minecraft history Short from CC BY gameplay
-        if: github.event_name == 'push' && !contains(github.event.head_commit.message, 'Publish reviewed Minecraft Short')
-        run: python3 .github/scripts/render_minecraft_history.py
-
-      - name: Upload exactly one approved Minecraft Short to YouTube PUBLIC
-        if: github.event_name == 'push' && contains(github.event.head_commit.message, 'Publish reviewed Minecraft Short')
-        run: python3 .github/scripts/upload_minecraft_once.py
-
-      - name: Verify owner-only API management and token fallbacks
-        run: node --test .github/workers/integrations.test.mjs
-
       - name: Build cinematic AI-concept review video
-        if: github.event_name != 'push' || !contains(github.event.head_commit.message, 'Publish reviewed Minecraft Short')
+        if: github.event_name != 'workflow_dispatch' || inputs.schedule_approved != true
         env:
           # One first-batch pilot uses an existing draft, then cron picks current drafts.
           ZARA_JOB_ID: ${{ github.event_name == 'push' && '2026-11-16:short' || github.event.inputs.job_id || '' }}
@@ -94,7 +87,7 @@ jobs:
         run: python3 .github/scripts/render_zara.py
 
       - name: Save preview for owner review
-        if: success()
+        if: success() && (github.event_name != 'workflow_dispatch' || inputs.schedule_approved != true)
         uses: actions/upload-artifact@v4
         with:
           name: zara-ai-concept-for-review
@@ -105,3 +98,12 @@ jobs:
       - name: Test Google YouTube PRIVATE upload (manual owner run only)
         if: github.event_name == 'workflow_dispatch' && inputs.private_upload_test == true && inputs.smoke_test == true
         run: python3 .github/scripts/upload_private_test.py
+
+      - name: Schedule rights-approved Game Xplorer video with thumbnail
+        if: github.event_name == 'workflow_dispatch' && inputs.schedule_approved == true
+        env:
+          ZARA_JOB_ID: ${{ inputs.job_id }}
+          ZARA_PUBLISH_AT_UTC: ${{ inputs.publish_at_utc }}
+          ZARA_VIDEO_PATH: ${{ inputs.video_path }}
+          ZARA_THUMBNAIL_PATH: ${{ inputs.thumbnail_path }}
+        run: python3 .github/scripts/upload_scheduled.py
