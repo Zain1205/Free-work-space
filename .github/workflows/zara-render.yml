@@ -96,7 +96,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Test Google YouTube PRIVATE upload (manual owner run only)
-        if: github.event_name == 'workflow_dispatch' && inputs.private_upload_test == true && inputs.smoke_test == true
+        if: github.event_name == 'workflow_dispatch' && inputs.private_upload_test == true && inputs.smoke_test == true && inputs.schedule_approved != true
         run: python3 .github/scripts/upload_private_test.py
 
       - name: Schedule rights-approved Game Xplorer video with thumbnail
