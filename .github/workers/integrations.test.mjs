@@ -6,7 +6,14 @@ import {routeIntegrations} from './integrations_manager.mjs';
 if (!globalThis.crypto) globalThis.crypto = webcrypto;
 
 const db = {
-  prepare() { return {bind() { return {async first() {return null;}};}}; },
+  prepare() { return {
+    async all() { return { results: [
+      { id: 'demo-motion-prompt-library', role: 'reference', status: 'reference_only' },
+      { id: 'demo-freellmapi-router', role: 'router', status: 'optional_disabled' },
+      { id: 'demo-unverified-10b-plugin', role: 'unverified', status: 'unverified_not_installed' },
+    ] }; },
+    bind() { return {async first() {return null;}}; },
+  }; },
 };
 const env = {DB:db, YOUTUBE_OWNER_SETUP_KEY:'test-owner-secret-not-for-production'};
 
