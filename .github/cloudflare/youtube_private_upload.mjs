@@ -44,12 +44,14 @@ export async function routePrivateUpload(request, env) {
   if (url.pathname==='/upload/status' && request.method==='GET') {
     return json({private_upload_api_installed:true,private_upload_enabled:PRIVATE_ONLY,
       youtube_oauth_connected:await youtubeConnected(env),scheduled_upload_api_installed:true,
-      scheduled_release_supported:true,public_publishing_enabled:false,
-      automatic_publishing_enabled:false,max_mp4_bytes:MAX_BYTES,max_thumbnail_bytes:MAX_THUMBNAIL_BYTES,
-      note:'Scheduled release requires a rights-approved video and signed owner workflow; no job is scheduled by this status response.'});
+      scheduled_release_supported:true,public_publishing_enabled:true,
+      automatic_publishing_enabled:true,conditional_on_exact_rights_approval:true,
+      max_mp4_bytes:MAX_BYTES,max_thumbnail_bytes:MAX_THUMBNAIL_BYTES,
+      note:'GitHub cron submits approved queue items automatically. Empty/unapproved queue does not schedule videos; check D1 for actual YouTube IDs.'});
   }
   if (!['/upload/private','/upload/scheduled','/upload/thumbnail'].includes(url.pathname) || request.method!=='POST') return json({error:'not_found'},404);
-  if (!(await hasValidGitHubIdentity(request,['workflow_dispatch']))) return json({error:'manual_github_identity_required'},401);
+  const signedEvents=url.pathname==='/upload/private' ? ['workflow_dispatch'] : ['workflow_dispatch','schedule'];
+  if (!(await hasValidGitHubIdentity(request,signedEvents))) return json({error:url.pathname==='/upload/private'?'manual_github_identity_required':'signed_owner_workflow_required'},401);
   if (url.pathname==='/upload/thumbnail') return routeThumbnail(request,env,url);
   if (url.pathname==='/upload/scheduled') return routeScheduled(request,env,url);
   if (!PRIVATE_ONLY) return json({error:'private_upload_disabled'},503);
