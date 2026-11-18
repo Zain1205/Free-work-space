@@ -7,6 +7,7 @@ register. No Google credentials are ever handled by this script or GitHub.
 
 import json
 import os
+import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import urllib.error
@@ -62,7 +63,7 @@ def call_worker(path: str, data: bytes, headers: dict, identity: str) -> dict:
 
 def main() -> None:
     job_id = os.environ.get("ZARA_JOB_ID", "").strip()
-    if not __import__("re").fullmatch(r"\d{4}-\d{2}-\d{2}:(short|long)", job_id):
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}:(short|long)", job_id):
         raise RuntimeError("Invalid editorial job ID")
     publish_at = future_utc_time(os.environ.get("ZARA_PUBLISH_AT_UTC", ""))
     media = approved_local_file(
@@ -83,7 +84,7 @@ def main() -> None:
     if result.get("status") != "scheduled" or result.get("publish_at_utc") != publish_at:
         raise RuntimeError("YouTube did not confirm scheduled publication")
     video_id = result.get("youtube_id", "")
-    if not __import__("re").fullmatch(r"[A-Za-z0-9_-]{6,32}", video_id):
+    if not re.fullmatch(r"[A-Za-z0-9_-]{6,32}", video_id):
         raise RuntimeError("YouTube video ID missing")
     if not result.get("thumbnail_set"):
         image_mime = "image/png" if thumbnail.suffix.lower() == ".png" else "image/jpeg"
