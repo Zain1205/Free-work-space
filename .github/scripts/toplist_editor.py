@@ -19,6 +19,11 @@ FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 FPS = 24
 OVERLAP = 0.45
 ALLOWED_RIGHTS = {"self-recorded", "licensed"}
+COLOR_PRESETS = {
+    "cinematic-pulse": "eq=contrast=1.12:saturation=1.14:gamma=0.96",
+    "neon-sweep": "eq=contrast=1.15:saturation=1.24:gamma=0.93",
+    "clean": "eq=contrast=1.06:saturation=1.06:gamma=1.0",
+}
 
 
 def run(*arguments: str) -> None:
@@ -53,6 +58,8 @@ def load_manifest(path: Path) -> tuple[dict, list[dict], Path | None]:
     for field in ("game", "title"):
         if not isinstance(document.get(field), str) or not 2 <= len(document[field]) <= 52:
             raise ValueError(f"Missing/invalid {field}")
+    if document.get("preset", "cinematic-pulse") not in COLOR_PRESETS:
+        raise ValueError("Unsupported editing preset")
     root = path.resolve().parent
     target_ranks = list(range(len(entries), 0, -1))
     for i, entry in enumerate(entries):
@@ -64,6 +71,9 @@ def load_manifest(path: Path) -> tuple[dict, list[dict], Path | None]:
             raise ValueError(f"Rank {entry['rank']}: invalid label")
         entry["_path"] = local_asset(root, str(entry.get("clip", "")))
         entry["_speed"] = float(entry.get("speed", 1.0))
+        entry["_preset"] = entry.get("preset", document.get("preset", "cinematic-pulse"))
+        if entry["_preset"] not in COLOR_PRESETS:
+            raise ValueError(f"Rank {entry['rank']}: unsupported editing preset")
         if not 0.5 <= entry["_speed"] <= 1.5:
             raise ValueError("Allowed speed range is 0.5x to 1.5x")
         entry["_duration"] = float(entry.get("duration", 25 if kind == "long" else 5))
@@ -90,9 +100,11 @@ def render_card(out: Path, text_path: Path, subtitle_path: Path, *, width: int,
         "drawbox=x=0:y=0:w=iw:h=ih:color=0x070d1a@1:t=fill,"
         f"drawbox=x=0:y={height//3}:w=iw:h=6:color=0x00d8ff:t=fill,"
         f"drawtext=fontfile={FONT}:textfile={text_path}:fontcolor=white:"
-        f"fontsize={round(width*.05)}:x=(w-text_w)/2:y=(h-text_h)/2-40,"
+        f"fontsize={round(width*.05)}:x=(w-text_w)/2:y=(h-text_h)/2-40:"
+        "alpha='min(1,t/0.4)',"
         f"drawtext=fontfile={FONT}:textfile={subtitle_path}:fontcolor=0x8be7ff:"
-        f"fontsize={round(width*.024)}:x=(w-text_w)/2:y=(h-text_h)/2+55,"
+        f"fontsize={round(width*.024)}:x=(w-text_w)/2:y=(h-text_h)/2+55:"
+        "alpha='min(1,t/0.65)',"
         "format=yuv420p,setsar=1"
     )
     run("-f", "lavfi", "-i", f"color=c=0x070d1a:s={width}x{height}:r={FPS}",
@@ -133,11 +145,13 @@ def edit_toplist(manifest: Path, output: Path, *, width: int | None = None) -> P
                 f"scale={width}:{height}:force_original_aspect_ratio=increase:flags=lanczos",
                 f"crop={width}:{height}",
                 f"fps={FPS}",
-                "eq=contrast=1.09:saturation=1.13:gamma=0.98",
+                COLOR_PRESETS[entry["_preset"]],
                 "unsharp=3:3:0.25:3:3:0.0",
                 f"drawbox=x=0:y=0:w=iw:h={round(height*.105)}:color=0x07131c@0.72:t=fill",
                 f"drawbox=x=0:y={round(height*.105)-5}:w=iw:h=5:color=0x00d8ff:t=fill",
-                f"drawtext=fontfile={FONT}:textfile={title}:fontcolor=white:fontsize={round(width*.040)}:x={round(width*.035)}:y={round(height*.035)}",
+                f"drawtext=fontfile={FONT}:textfile={title}:fontcolor=white:fontsize={round(width*.040)}:"
+                f"x='max({round(width*.035)}{chr(44)}{round(width*.035)}+(0.42-t)*{width})':"
+                f"y={round(height*.035)}:alpha='min(1,t/0.38)'",
             ]
             if entry.get("poetry"):
                 filters += [
