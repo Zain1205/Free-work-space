@@ -1,6 +1,7 @@
 """Submit a rights-approved Game Xplorer edit to YouTube's scheduled-release API.
 
-Intended only for the manually dispatched, signed GitHub Actions workflow.
+Intended only for the signed GitHub Actions workflow, manually dispatched or
+running its rights-approved daily queue.
 The Worker checks the exact MP4 SHA-256 against its independent approved-media
 register. No Google credentials are ever handled by this script or GitHub.
 """
@@ -61,20 +62,18 @@ def call_worker(path: str, data: bytes, headers: dict, identity: str) -> dict:
         raise RuntimeError(f"Game Xplorer upload failed: HTTP {exc.code}") from exc
 
 
-def main() -> None:
-    job_id = os.environ.get("ZARA_JOB_ID", "").strip()
+def submit_one(job_id: str, publish_at: str, video_path: str, thumbnail_path: str, identity: str) -> None:
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}:(short|long)", job_id):
         raise RuntimeError("Invalid editorial job ID")
-    publish_at = future_utc_time(os.environ.get("ZARA_PUBLISH_AT_UTC", ""))
+    publish_at = future_utc_time(publish_at)
     media = approved_local_file(
-        os.environ.get("ZARA_VIDEO_PATH", ""),
+        video_path,
         max_bytes=MAX_VIDEO_SIZE, extensions={".mp4"},
     )
     thumbnail = approved_local_file(
-        os.environ.get("ZARA_THUMBNAIL_PATH", ""),
+        thumbnail_path,
         max_bytes=MAX_THUMBNAIL_SIZE, extensions={".jpg", ".jpeg", ".png"},
     )
-    identity = github_oidc_token()
     query = urllib.parse.urlencode({"job_id": job_id})
     result = call_worker(
         f"/upload/scheduled?{query}", media.read_bytes(),
@@ -96,6 +95,47 @@ def main() -> None:
         if image_result.get("status") not in ("thumbnail_applied", "thumbnail_already_applied"):
             raise RuntimeError("Thumbnail not confirmed; retry this workflow before the scheduled release")
     print(f"Game Xplorer upload scheduled and thumbnail set: https://www.youtube.com/watch?v={video_id} at {publish_at} UTC")
+
+
+def main() -> None:
+    if os.environ.get("ZARA_AUTO_QUEUE") != "1":
+        identity = github_oidc_token()
+        submit_one(
+            os.environ.get("ZARA_JOB_ID", "").strip(),
+            os.environ.get("ZARA_PUBLISH_AT_UTC", ""),
+            os.environ.get("ZARA_VIDEO_PATH", ""),
+            os.environ.get("ZARA_THUMBNAIL_PATH", ""), identity,
+        )
+        return
+
+    queue = Path("approved_media/publishing_queue.json")
+    if not queue.is_file():
+        print("No owner-approved publishing queue exists; no video uploaded.")
+        return
+    if queue.stat().st_size > 50_000:
+        raise RuntimeError("Publishing queue exceeds the manifest size limit")
+    entries = json.loads(queue.read_text(encoding="utf-8"))
+    if not isinstance(entries, list) or len(entries) > 20:
+        raise RuntimeError("Publishing queue must contain at most 20 entries")
+    now = datetime.now(timezone.utc)
+    selected = []
+    for entry in entries:
+        if not isinstance(entry, dict) or not all(isinstance(entry.get(key), str)
+               for key in ("job_id", "publish_at_utc", "video_path", "thumbnail_path")):
+            raise RuntimeError("Invalid entry in owner-approved publishing queue")
+        try:
+            moment = datetime.strptime(entry["publish_at_utc"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        except ValueError as exc:
+            raise RuntimeError("Invalid UTC timestamp in publishing queue") from exc
+        if now + timedelta(minutes=2) <= moment <= now + timedelta(hours=48):
+            selected.append(entry)
+    if not selected:
+        print("No approved queue items due within 48 hours; no video uploaded.")
+        return
+    identity = github_oidc_token()
+    for entry in selected:
+        submit_one(entry["job_id"], entry["publish_at_utc"],
+                   entry["video_path"], entry["thumbnail_path"], identity)
 
 
 if __name__ == "__main__":
