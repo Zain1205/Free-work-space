@@ -40,15 +40,19 @@ export default {
         value.ai_generation_enabled = false; // scheduled image generation remains off pending first-batch review
         value.rendering_connected = true; // verified on 2026-11-17 with four AI scenes and FFmpeg
         value.first_review_video = {format:'1080x1920 H.264',duration_seconds:32,job_id:'2026-11-16:short',github_run:VERIFIED_REVIEW_RUN,artifact:VERIFIED_REVIEW_ARTIFACT};
-        value.publishing_enabled = false;
+        value.publishing_enabled = true;
         value.private_upload_endpoint_enabled = linked;
         value.scheduled_release_endpoint_installed = true;
         value.scheduled_release_requires_rights_approval = true;
         value.scheduled_release_requires_signed_owner_workflow = true;
         value.thumbnail_upload_endpoint_installed = true;
-        value.automatic_publishing_enabled = false;
+        value.automatic_publishing_enabled = true;
+        value.publishing_is_rights_gated = true;
+        value.automatic_runner = 'GitHub Actions daily cron checks approved_media/publishing_queue.json';
+        const scheduledCount=await env.DB.prepare("SELECT COUNT(*) AS n FROM youtube_scheduled_uploads WHERE upload_state='scheduled'").first();
+        value.youtube_confirmed_scheduled_count = Number(scheduledCount?.n||0);
         value.integration_manager = '/integrations/status';
-        value.stage = linked ? 'first_ai_review_video_ready_no_publishing' : 'youtube_oauth_setup_pending';
+        value.stage = linked ? 'rights_gated_auto_scheduler_deployed_no_unapproved_media' : 'youtube_oauth_setup_pending';
         value.next_step = linked ? 'approve exact footage/music SHA-256 rights record, then submit signed scheduled upload with thumbnail' : 'finish owner Google consent';
         return new Response(JSON.stringify(value,null,2),{headers:{...SECURITY,'Content-Type':'application/json; charset=utf-8'}});
       }
